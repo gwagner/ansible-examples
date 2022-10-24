@@ -1,0 +1,2 @@
+/site/foo/
+/site/bar/

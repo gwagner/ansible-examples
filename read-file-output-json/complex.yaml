@@ -1,0 +1,28 @@
+- name: Complex Read file and output JSON
+  hosts: localhost
+  connection: local 
+  become: false
+  tasks:
+  - name: Read Data File
+    set_fact:
+      data: "{{lookup('ansible.builtin.file', './input.txt').split('\n')}}"
+
+  - name: Show debug data
+    ansible.builtin.debug: var=data
+
+  - name: Create a new array
+    set_fact: 
+      data_elements: []
+
+  - name: Loop through lines and add data elements to array
+    set_fact:
+      data_elements: "{{ data_elements + [{'name': item}] }}"
+    loop: "{{ data }}"
+
+  - name: Show debug data
+    ansible.builtin.debug: var=data_elements
+
+  - name: Write output json file
+    copy:
+      dest: output.json
+      content: "{{ {'records': data_elements} | to_json }}" 
