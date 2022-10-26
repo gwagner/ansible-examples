@@ -1,3 +1,4 @@
-storage_path: /vmfs/volumes/5e95c1dd-db955ce7-f54c-000f530c8250
-datastore_name: VMWARE_Datastore
+vmware_host: 192.168.1.1
 image_name: centos-8-image
+datastore_name: VMWARE_Datastore
+storage_path: /vmfs/volumes/5e95c1dd-db955ce7-f54c-000f530c8250
