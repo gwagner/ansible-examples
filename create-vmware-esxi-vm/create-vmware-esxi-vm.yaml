@@ -1,0 +1,136 @@
+---
+- name: Create VMWare ESXi VM
+  hosts: all
+  gather_facts: false
+  vars:
+    destructive: false
+  tasks:
+    - include_vars: config.yaml
+      delegate_to: localhost
+
+    - include_vars: creds.yaml # Remember, this should be in a vault
+      delegate_to: localhost   # These creds are for example use only
+
+    - name: Check if virtual machine exists
+      community.vmware.vmware_guest_info:
+        validate_certs: false
+        hostname: "{{ vmware_host }}"
+        username: "{{ vmware_user }}"
+        password: "{{ vmware_password }}"
+        datacenter: "ha-datacenter"
+        name: "{{ vmware.name }}"
+      delegate_to: localhost
+      ignore_errors: true
+      throttle: 1
+      register: vmware_validate_guest
+      when: destructive is not defined or not destructive
+
+    - set_fact:
+        destructive: yes
+      when: |
+        vmware_validate_guest is defined and (
+          (vmware_validate_guest.skipped is defined and not vmware_validate_guest.skipped) 
+          or (vmware_validate_guest.failed is defined and vmware_validate_guest.failed == True)
+        )
+
+    - name: Add vmware as a host
+      add_host:
+        hostname: "{{ vmware_host }}"
+        ansible_ssh_host: "{{ vmware_host }}"
+        ansible_user: "{{ vmware_user }}"
+        ansible_ssh_pass: "{{ vmware_password }}"
+      when: destructive
+
+    - set_fact:
+        num_cpu_cores_per_socket: "{{ vmware.num_cpus | int / 2 }}"
+
+    - name: Remove virtual machine from inventory
+      community.vmware.vmware_guest:
+        validate_certs: false
+        hostname: "{{ vmware_host }}"
+        username: "{{ vmware_user }}"
+        password: "{{ vmware_password }}"
+        name: "{{ vmware.name }}"
+        state: absent
+        force: True
+      delegate_to: localhost
+      throttle: 1
+      when: destructive
+
+    - name: Delete VM Folders
+      ansible.builtin.file:
+        path: "{{storage_path}}/{{ vmware.name }}/"
+        state: absent
+      delegate_to: "{{ vmware_host }}"
+      when: destructive
+      throttle: 5
+
+    - name: Create a virtual machine on vmware
+      community.vmware.vmware_guest:
+        validate_certs: false
+        hostname: "{{ vmware_host }}"
+        username: "{{ vmware_user }}"
+        password: "{{ vmware_password }}"
+        folder: /vm/
+        name: "{{ vmware.name }}"
+        state: poweredoff
+        guest_id: "{{ vmware.guest_id }}"    
+        disk: "{{ vmware.disks }}"
+        datastore: "{{ datastore_name }}"
+        hardware:
+          boot_firmware: efi
+          memory_mb: "{{ vmware.memory_mb }}"
+          num_cpus: "{{ vmware.num_cpus }}"
+          num_cpu_cores_per_socket: "{{ num_cpu_cores_per_socket | int }}"
+          scsi: paravirtual
+        networks:
+        - name: "{{ vmware.port_group }}"
+          connect: yes
+          mac: "{{ vmware.mac_address  }}"
+          ip: "{{ vmware.ip_address }}"
+          netmask: "{{ vmware.netmask }}"
+          device_type: vmxnet3
+          type: static
+      delegate_to: localhost
+      register: deploy_vm
+      throttle: 5
+      when: destructive
+
+    - name: Copy boot disk VMDK Files
+      ansible.builtin.command: "{{ item }}"
+      delegate_to: "{{ vmware_host }}"
+      loop:
+        - vmkfstools -i "{{storage_path}}/{{ image_name }}/{{ image_name }}.vmdk" "{{storage_path}}/{{ vmware.name }}/{{ image_name }}.vmdk" -d thin
+      when: destructive
+      throttle: 3
+
+    - name: Add boot disks to virtual machine
+      community.vmware.vmware_guest_disk:
+        validate_certs: false
+        hostname: "{{ vmware_host }}"
+        username: "{{ vmware_user }}"
+        password: "{{ vmware_password }}"
+        name: "{{ vmware.name }}"
+        datacenter: ha-datacenter
+        disk:
+          - filename: "[{{datastore_name}}] {{ vmware.name }}/{{ image_name }}.vmdk"
+            scsi_type: 'paravirtual'
+            scsi_controller: 0
+            unit_number: 1
+      delegate_to: localhost
+      register: disk_facts
+      when: destructive
+      throttle: 5
+
+    - name: Power on virtual machine
+      community.vmware.vmware_guest:
+        validate_certs: false
+        hostname: "{{ vmware_host }}"
+        username: "{{ vmware_user }}"
+        password: "{{ vmware_password }}"
+        name: "{{ vmware.name }}"
+        state: poweredon
+        wait_for_ip_address: yes
+      delegate_to: localhost
+      register: deploy_vm
+      when: destructive
