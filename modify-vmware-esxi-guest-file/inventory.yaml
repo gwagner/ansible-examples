@@ -1,0 +1,24 @@
+---
+all:
+  hosts:
+  children:
+    example:
+      hosts:
+        example-01.valewood.lab:
+          ip: 192.168.1.10 
+          ansible_host: 192.168.1.10
+          vmware:
+            ip_address: 192.168.1.10
+            gateway_address: 192.168.1.1
+            dns_address: 192.168.1.1
+            netmask: 255.255.255.0
+            mac_address: "00:16:3E:A0:06:43"
+            memory_mb: 8192
+            name: example-01
+            num_cpus: 4
+            port_group: Example-App
+            guest_id: centos64Guest
+            disks: []
+
+
+      

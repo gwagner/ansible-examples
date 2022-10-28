@@ -1,0 +1,7 @@
+---
+# Do NOT store this in a plaintext file, ensure 
+# this info is encrypted via ansible-vault
+vmware_user: root
+vmware_password: password
+centos_template_user: root
+centos_template_password: password

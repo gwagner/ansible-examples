@@ -1,0 +1,61 @@
+---
+- name: Modify VMWare ESXi VM File
+  hosts: all
+  gather_facts: false
+  tasks:
+    - include_vars: config.yaml
+      delegate_to: localhost
+
+    - include_vars: creds.yaml # Remember, this should be in a vault
+      delegate_to: localhost   # These creds are for example use only
+
+    - name: Create .ssh folder
+      community.vmware.vmware_guest_file_operation:
+        validate_certs: false
+        hostname: "{{ vmware_host }}"
+        username: "{{ vmware_user }}"
+        password: "{{ vmware_password }}"
+        datacenter: ha-datacenter
+        vm_id: "{{ vmware.name }}"
+        vm_username: "{{ centos_template_user }}"
+        vm_password: "{{ centos_template_password }}"
+        directory:
+          path: "/home/user/.ssh/"
+          operation: create
+          recurse: no
+      delegate_to: localhost
+
+    - name: Copy RSA to VM
+      community.vmware.vmware_guest_file_operation:
+        validate_certs: false
+        hostname: "{{ vmware_host }}"
+        username: "{{ vmware_user }}"
+        password: "{{ vmware_password }}"
+        datacenter: ha-datacenter
+        vm_id: "{{ vmware.name }}"
+        vm_username: "{{ centos_template_user }}"
+        vm_password: "{{ centos_template_password }}"
+        copy:
+          src: "/home/user/.ssh/id_rsa.pub"
+          dest: "/home/user/.ssh/authorized_keys"
+          overwrite: yes
+      delegate_to: localhost
+
+    - name: Run command inside a virtual machine
+      community.vmware.vmware_vm_shell:
+        hostname: "{{ vmware_host }}"
+        username: "{{ vmware_user }}"
+        password: "{{ vmware_password }}"
+        datacenter: ha-datacenter
+        vm_id: "{{ vmware.name }}"
+        vm_username: "{{ centos_template_user }}"
+        vm_password: "{{ centos_template_password }}"
+        vm_shell: "{{ item.shell }}"
+        vm_shell_args: "{{ item.args }}"
+      loop:
+        - { shell: "nmcli", args: "connection modify ens192 IPv4.ignore-auto-dns yes" }
+        - { shell: "nmcli", args: "connection modify ens192 IPv4.address \"{{ vmware.ip_address }}/24\"" }
+        - { shell: "nmcli", args: "connection modify ens192 IPv4.gateway \"{{ vmware.gateway_address }}\"" }
+        - { shell: "nmcli", args: "connection modify ens192 IPv4.dns \"{{ vmware.dns_address }}\"" }
+        - { shell: "nmcli", args: "connection modify ens192 IPv4.method manual" }
+      delegate_to: localhost
