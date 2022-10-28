@@ -53,9 +53,10 @@
         vm_shell: "{{ item.shell }}"
         vm_shell_args: "{{ item.args }}"
       loop:
-        - { shell: "nmcli", args: "connection modify ens192 IPv4.ignore-auto-dns yes" }
-        - { shell: "nmcli", args: "connection modify ens192 IPv4.address \"{{ vmware.ip_address }}/24\"" }
-        - { shell: "nmcli", args: "connection modify ens192 IPv4.gateway \"{{ vmware.gateway_address }}\"" }
-        - { shell: "nmcli", args: "connection modify ens192 IPv4.dns \"{{ vmware.dns_address }}\"" }
-        - { shell: "nmcli", args: "connection modify ens192 IPv4.method manual" }
+        - { shell: "/bin/nmcli", args: "connection modify ens192 IPv4.ignore-auto-dns yes" }
+        - { shell: "/bin/nmcli", args: "connection modify ens192 IPv4.address \"{{ vmware.ip_address }}/24\"" }
+        - { shell: "/bin/nmcli", args: "connection modify ens192 IPv4.gateway \"{{ vmware.gateway_address }}\"" }
+        - { shell: "/bin/nmcli", args: "connection modify ens192 IPv4.dns \"{{ vmware.dns_address }}\"" }
+        - { shell: "/bin/nmcli", args: "connection modify ens192 IPv4.method manual" }
+        - { shell: "/bin/systemctl", args: "NetworkManager restart" }
       delegate_to: localhost
