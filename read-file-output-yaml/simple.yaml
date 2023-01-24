@@ -1,0 +1,16 @@
+- name: Simple Read file and output YAML
+  hosts: localhost
+  connection: local 
+  become: false
+  tasks:
+  - name: Read Data File
+    set_fact:
+      data: "{{lookup('ansible.builtin.file', './input.txt').split('\n')}}"
+
+  - name: Show debug data
+    ansible.builtin.debug: var=data
+
+  - name: Write output yaml file
+    copy:
+      dest: output.yaml
+      content: "{{ data | to_yaml }}" 
